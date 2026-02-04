@@ -13,87 +13,57 @@
         .input-group { text-align: left; margin-bottom: 1rem; position: relative; }
         label { display: block; font-weight: bold; margin-bottom: 0.3rem; font-size: 0.9rem; }
         input { width: 100%; padding: 10px; border: 2px solid #eee; border-radius: 10px; box-sizing: border-box; }
-        
-        /* バーコードボタン */
-        .barcode-btn {
-            background: #555; color: white; border: none; padding: 5px 10px; border-radius: 5px;
-            font-size: 0.7rem; cursor: pointer; margin-top: 5px;
-        }
-
+        .barcode-btn { background: #555; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 0.7rem; cursor: pointer; margin-top: 5px; }
         .btn-main { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 10px; width: 100%; font-size: 1.2rem; font-weight: bold; cursor: pointer; margin-top: 10px; border-bottom: 4px solid #f87a7e; }
         .btn-main:active { transform: translateY(2px); border-bottom: 2px solid #f87a7e; }
-
         .total-pages { font-size: 1.8rem; color: var(--accent); font-weight: bold; margin: 20px 0; }
         #interactive.viewport { width: 100%; height: 200px; border: 2px solid #ddd; border-radius: 10px; overflow: hidden; display: none; margin-bottom: 10px; }
-        
         .history-item { background: #f9f9f9; padding: 10px; border-radius: 8px; margin-bottom: 8px; text-align: left; border-left: 4px solid var(--primary); font-size: 0.9rem; }
     </style>
 </head>
 <body>
-
 <div class="container">
     <h1><i class="fas fa-piggy-bank"></i> 読書貯金箱</h1>
-    
     <div class="total-pages">合計: <span id="total-count">0</span> ページ</div>
-
     <div id="interactive" class="viewport"></div>
-
     <div class="input-group">
         <label>なまえ</label>
         <input type="text" id="name" placeholder="なまえを入力">
     </div>
-
     <div class="input-group">
         <label>本のタイトル</label>
         <input type="text" id="title" placeholder="本の名まえ">
         <button class="barcode-btn" onclick="startScanner()"><i class="fas fa-barcode"></i> バーコードを読み取る</button>
     </div>
-
     <div class="input-group">
         <label>ページ数</label>
         <input type="number" id="pages" placeholder="例: 200">
     </div>
-
     <button class="btn-main" onclick="handleSave()"><i class="fas fa-coins"></i> 貯金する！</button>
-    
     <div id="status" style="font-size: 0.8rem; color: #27ae60; margin-top: 10px;"></div>
-
     <div style="margin-top: 30px; text-align: left;">
         <h3><i class="fas fa-list"></i> これまでのきろく</h3>
         <div id="history-list"></div>
     </div>
 </div>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
-
 <script>
-    // ★先生のGAS URLをここに貼ってください
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzRCE0KESE0ZlWtzM-w9bOj3CtDuYmPZAKOgU1_kP0VPWWTIkMttzJaM90rmF-JaondWw/exec";
-
     let totalPages = parseInt(localStorage.getItem('total_pages')) || 0;
     let history = JSON.parse(localStorage.getItem('reading_history')) || [];
-
     window.onload = updateDisplay;
-
-    // 貯金ボタンの処理
     async function handleSave() {
         const name = document.getElementById('name').value;
         const title = document.getElementById('title').value;
         const pages = parseInt(document.getElementById('pages').value);
         const status = document.getElementById('status');
-
         if (!name || !title || !pages) return alert("全部入力してね！");
-
-        // ローカル保存
         totalPages += pages;
         history.unshift({ name, title, pages, date: new Date().toLocaleDateString() });
         localStorage.setItem('total_pages', totalPages);
         localStorage.setItem('reading_history', JSON.stringify(history));
-
         updateDisplay();
         status.innerText = "先生に送信中...";
-
-        // スプレッドシート送信
         try {
             await fetch(GAS_URL, {
                 method: "POST",
@@ -102,13 +72,11 @@
             });
             status.innerText = "✅ 先生に送ったよ！";
         } catch (e) {
-            status.innerText = "❌ 送信エラー（ネットを確認してね）";
+            status.innerText = "❌ 送信エラー";
         }
-
         document.getElementById('title').value = "";
         document.getElementById('pages').value = "";
     }
-
     function updateDisplay() {
         document.getElementById('total-count').innerText = totalPages;
         document.getElementById('history-list').innerHTML = history.map(h => `
@@ -117,12 +85,9 @@
             </div>
         `).join('');
     }
-
-    // バーコードスキャナーの開始
     function startScanner() {
         const container = document.getElementById('interactive');
         container.style.display = "block";
-
         Quagga.init({
             inputStream: { name: "Live", type: "LiveStream", target: container },
             decoder: { readers: ["ean_reader"] }
@@ -130,13 +95,10 @@
             if (err) return alert("カメラが使えません");
             Quagga.start();
         });
-
         Quagga.onDetected(async function(result) {
             const code = result.codeResult.code;
             Quagga.stop();
             container.style.display = "none";
-            
-            // Google Books APIで本を検索
             const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${code}`);
             const data = await res.json();
             if (data.items) {
@@ -145,7 +107,7 @@
                 document.getElementById('pages').value = info.pageCount || "";
                 alert("本が見つかりました！");
             } else {
-                alert("本が見つかりませんでした。手入力してください。");
+                alert("本が見つかりませんでした。");
             }
         });
     }
